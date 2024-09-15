@@ -71,6 +71,7 @@ func getAccessToken() (string, error) {
 func validateAddress(c *gin.Context) {
 	var request struct {
 		Address string `json:"address"`
+		City    string `json:"city"`
 		State   string `json:"state"`
 	}
 
@@ -90,7 +91,7 @@ func validateAddress(c *gin.Context) {
 		SetAuthToken(token).
 		SetQueryParams(map[string]string{
 			"streetAddress": request.Address,
-			"city":          "Astoria",
+			"city":          request.City,
 			"state":         request.State,
 		}).
 		Get("https://api.usps.com/addresses/v3/address")
