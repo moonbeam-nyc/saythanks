@@ -2,7 +2,8 @@ services:
   backend:
     build: saythanks-backend
     environment:
-      - USPS_USER_ID=${USPS_USER_ID-}
+      - USPS_CLIENT_ID=${USPS_CLIENT_ID-}
+      - USPS_CLIENT_SECRET=${USPS_CLIENT_SECRET-}
     ports:
       - "8080:8080"
 

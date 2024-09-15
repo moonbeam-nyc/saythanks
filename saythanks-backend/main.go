@@ -1,35 +1,77 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-resty/resty/v2"
 )
 
-var userID string
+var (
+	token     string
+	tokenLock sync.Mutex
+	expiry    time.Time
+)
 
 func main() {
-	// Get USPS user ID from environment variable
-	userID := os.Getenv("USPS_USER_ID")
-	if userID == "" {
-		fmt.Println("USPS_USER_ID environment variable is required")
-		return
-	}
-
-	// Create and run the Gin server
 	router := gin.Default()
 	router.POST("/api/address/validate", validateAddress)
 	router.GET("/api/recipients", getRecipients)
 	router.Run(":8080")
 }
 
+func getAccessToken() (string, error) {
+	tokenLock.Lock()
+	defer tokenLock.Unlock()
+
+	if token != "" && time.Now().Before(expiry) {
+		return token, nil
+	}
+
+	clientID := os.Getenv("USPS_CLIENT_ID")
+	clientSecret := os.Getenv("USPS_CLIENT_SECRET")
+	if clientID == "" || clientSecret == "" {
+		return "", fmt.Errorf("USPS_CLIENT_ID or USPS_CLIENT_SECRET environment variable not set")
+	}
+
+	client := resty.New()
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(map[string]string{
+			"client_id":     clientID,
+			"client_secret": clientSecret,
+			"grant_type":    "client_credentials",
+		}).
+		Post("https://api.usps.com/oauth2/v3/token")
+
+	if err != nil {
+		return "", err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(resp.Body(), &result); err != nil {
+		return "", err
+	}
+
+	if accessToken, ok := result["access_token"].(string); ok {
+		token = accessToken
+		expiresIn := int64(result["expires_in"].(float64))
+		expiry = time.Now().Add(time.Duration(expiresIn) * time.Second)
+		return token, nil
+	}
+
+	return "", fmt.Errorf("failed to get access token")
+}
+
 func validateAddress(c *gin.Context) {
 	var request struct {
 		Address string `json:"address"`
-		ZipCode string `json:"zip_code"`
+		State   string `json:"state"`
 	}
 
 	if err := c.BindJSON(&request); err != nil {
@@ -37,23 +79,21 @@ func validateAddress(c *gin.Context) {
 		return
 	}
 
+	token, err := getAccessToken()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	client := resty.New()
 	resp, err := client.R().
+		SetAuthToken(token).
 		SetQueryParams(map[string]string{
-			"API": "Verify",
-			"XML": `<AddressValidateRequest USERID="` + userID + `">
-                        <Revision>1</Revision>
-						<Address>
-							<Address1></Address1>
-							<Address2>` + request.Address + `</Address2>
-							<City></City>
-							<State></State>
-							<Zip5>` + request.ZipCode + `</Zip5>
-							<Zip4></Zip4>
-						</Address>
-					</AddressValidateRequest>`,
+			"streetAddress": request.Address,
+			"city":          "Astoria",
+			"state":         request.State,
 		}).
-		Get("https://secure.shippingapis.com/ShippingAPI.dll")
+		Get("https://api.usps.com/addresses/v3/address")
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
