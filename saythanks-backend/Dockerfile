@@ -19,7 +19,9 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 COPY . .
 
 # Build the Go application
-RUN go build -o main .
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    go build -o main .
 
 # Command to run the executable with air
 CMD ["air"]

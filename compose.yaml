@@ -14,7 +14,11 @@ services:
 
   frontend:
     build: saythanks-frontend
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+    volumes:
+      - ./saythanks-frontend/app:/app/app
     ports:
       - "3000:3000"
-    environment:
-      - NODE_ENV=production
+    command: npm run dev

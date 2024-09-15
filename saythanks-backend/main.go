@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-resty/resty/v2"
 )
@@ -19,7 +20,19 @@ var (
 )
 
 func main() {
+	// Initialize the router
 	router := gin.Default()
+
+	// Set up CORS middleware
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+
 	router.POST("/api/address/validate", validateAddress)
 	router.GET("/api/recipients", getRecipients)
 	router.Run(":8080")
@@ -101,7 +114,13 @@ func validateAddress(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": resp.String()})
+	var responseData map[string]interface{}
+	if err := json.Unmarshal([]byte(resp.String()), &responseData); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": responseData})
 }
 
 func getRecipients(c *gin.Context) {
