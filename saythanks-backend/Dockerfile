@@ -1,6 +1,9 @@
 # Use the latest stable Go image
 FROM golang:1.23
 
+# Install air for live reloading
+RUN go install github.com/air-verse/air@latest
+
 # Set the working directory inside the container
 WORKDIR /app
 
@@ -18,8 +21,5 @@ COPY . .
 # Build the Go application
 RUN go build -o main .
 
-# Expose the port the app runs on
-EXPOSE 8080
-
-# Command to run the executable
-CMD ["./main"]
+# Command to run the executable with air
+CMD ["air"]

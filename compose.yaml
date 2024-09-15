@@ -1,11 +1,16 @@
 services:
   backend:
-    build: saythanks-backend
-    environment:
-      - USPS_CLIENT_ID=${USPS_CLIENT_ID-}
-      - USPS_CLIENT_SECRET=${USPS_CLIENT_SECRET-}
+    build:
+      context: ./saythanks-backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./saythanks-backend:/app
+      - /app/tmp
     ports:
       - "8080:8080"
+    environment:
+      - USPS_CLIENT_ID=${USPS_CLIENT_ID}
+      - USPS_CLIENT_SECRET=${USPS_CLIENT_SECRET}
 
   frontend:
     build: saythanks-frontend
