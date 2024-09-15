@@ -1,0 +1,14 @@
+services:
+  backend:
+    build: saythanks-backend
+    environment:
+      - USPS_USER_ID=${USPS_USER_ID-}
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build: saythanks-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
